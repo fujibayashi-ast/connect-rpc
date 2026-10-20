@@ -32,7 +32,7 @@ ConnectRPC のサンプル。proto で API を定義し、サーバーとクラ�
   * `apps/server-ts`: TypeScript（Node）+ `@connectrpc/connect-node`
 * API 定義: protobuf（`packages/proto`）。lint・コード生成は buf（`buf.yaml` / `buf.gen.yaml`）。TS の生成は `protoc-gen-es`。出力先は下の Architecture
 * バリデーション: protovalidate のアノテーションを proto に書く（検証コードを手で書かない）。サーバーは interceptor（Go: `connectrpc.com/validate`、TS: `@connectrpc/validate`）、web は `@bufbuild/protovalidate` で送信前に同じルールを実行する。数値を含むルール（長さ・形式）は標準ルールでなく CEL で書き、日本語のメッセージを proto に置く。理由と `fieldErrors.ts` の扱いは [docs/validation.md](docs/validation.md#メッセージを-proto-に置く)
-* ログ: 各サーバーにアクセスログ interceptor を置く。Go と TS で出力形式をそろえ、リクエストの中身は出さない。形式と `request_id`（`X-Request-Id`）の仕様は [docs/logging.md](docs/logging.md)。形式を変えるときは両サーバーを直す
+* ログ: 各サーバーにアクセスログ interceptor を置く。Go と TS で出力形式をそろえ、リクエストの中身は出さない。形式と `request_id`（`X-Request-Id`）の仕様は [docs/logging.md](docs/logging.md)
 * interceptor の並びは、アクセスログ → 想定外エラーの保護（`maskErrors`）→ 検証。先頭が一番外側（Go も TS も同じ）。理由は [docs/rpc-features.md](docs/rpc-features.md#想定外のエラー)
 * 読み取り専用の RPC は proto で `NO_SIDE_EFFECTS` を付けて GET でも呼べるようにする。ハンドラは冒頭で期限（Go の `ctx`、TS の `signal`）を確認する。詳細は [docs/rpc-features.md](docs/rpc-features.md)
 * Server streaming（`WatchContacts`）: TS の `accessLog` と `maskErrors` は応答のストリームを包む（Go は何もしなくてよい）。web の一覧は watch に依存させず、watch は「サーバーの変更」欄の通知に使う。watch の呼び出しは既定の期限で切れないよう `timeoutMs: 0`。変える前に [docs/streaming.md](docs/streaming.md) を読む
