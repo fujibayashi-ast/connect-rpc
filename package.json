@@ -15,6 +15,7 @@
     "test:unit": "bun run --filter @connect-rpc/web --filter @connect-rpc/server-ts test",
     "test:contract": "bun run --filter @connect-rpc/contract-test test",
     "proto:lint": "cd packages/proto && buf lint",
+    "proto:breaking": "cd packages/proto && buf breaking --against '../../.git#branch=main,subdir=packages/proto'",
     "generate": "cd packages/proto && buf generate",
     "test:go": "docker run --rm -v \"$PWD/apps/server-go\":/src -w /src golang:1.26-alpine go test ./..."
   },

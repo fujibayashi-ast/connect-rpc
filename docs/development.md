@@ -37,12 +37,17 @@ cd apps/web && bunx --bun shadcn@latest add <部品名>
 
 ## proto の変更
 
-API の定義と検証ルールは [packages/proto](../packages/proto) だけにある。変えたら lint して、コードを生成し直す。生成物（`packages/gen-ts`、`apps/server-go/gen`）は手で編集しない。
+API の定義と検証ルールは [packages/proto](../packages/proto) だけにある。変えたら lint と互換性の確認をして、コードを生成し直す。生成物（`packages/gen-ts`、`apps/server-go/gen`）は手で編集しない。
 
 ```bash
 bun run proto:lint
+bun run proto:breaking
 bun run generate
 ```
+
+`proto:breaking` は、作業ツリーの proto をローカルの `main` と比べ、後方互換性を壊す変更（フィールドや RPC の削除、フィールド番号・型の変更など）を `buf breaking`（ルールは `buf.yaml` の `FILE`）で検出する。何も出なければ互換性は保たれている。`origin/main` が進んでいるときは、先に `git pull` で `main` を更新する。
+
+壊れる変更が出たら、フィールドを消さずに新しいフィールドを足すなど、古いクライアントが動き続ける形にできないか考える。`FILE` は厳しいルールで、フィールドを `reserved` にしても「削除された」と指摘される（番号の再利用は防げるが、指摘は消えない）。意図して消すなら、`reserved` にしたうえで、この指摘は承知のうえで進めてよい。
 
 ## curl で試す
 
