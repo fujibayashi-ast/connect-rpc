@@ -1,0 +1,13 @@
+{
+  "name": "@connect-rpc/gen-ts",
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.16.0",
+    "@bufbuild/protovalidate": "^1.3.0"
+  },
+  "description": "buf generate の TS 生成物（編集しない）。web と server-ts が共有する",
+  "exports": {
+    "./*": "./src/*"
+  },
+  "private": true,
+  "type": "module"
+}

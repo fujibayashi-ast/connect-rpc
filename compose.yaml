@@ -1,0 +1,27 @@
+services:
+  server-go:
+    build:
+      context: ./apps/server-go
+    environment:
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  server-ts:
+    build:
+      context: .
+      dockerfile: apps/server-ts/Dockerfile
+    environment:
+      PORT: "8081"
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
+      interval: 5s
+      timeout: 2s
+      retries: 5

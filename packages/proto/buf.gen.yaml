@@ -1,0 +1,29 @@
+# 生成物は手で編集しない。proto を直して `bun run generate` で再生成する
+version: v2
+managed:
+  enabled: true
+  disable:
+    # 依存先（protovalidate）の go_package は書き換えない
+    - module: buf.build/bufbuild/protovalidate
+  override:
+    - file_option: go_package_prefix
+      value: connect-rpc/server-go/gen
+plugins:
+  # TS: web と server-ts が共有する
+  # - import_extension=ts: server-ts を Node の型除去でそのまま実行するため
+  # - erasable_syntax=true: enum を as const にする（erasableSyntaxOnly・型除去と両立）
+  # - map_imports: buf/validate の生成物は生成せず npm パッケージから import する
+  - local: protoc-gen-es
+    out: ../gen-ts/src
+    opt:
+      - target=ts
+      - import_extension=ts
+      - erasable_syntax=true
+      - map_imports=buf/validate/:@bufbuild/protovalidate/gen
+  # Go: server-go の中に出す
+  - remote: buf.build/protocolbuffers/go
+    out: ../../apps/server-go/gen
+    opt: paths=source_relative
+  - remote: buf.build/connectrpc/go:v2.0.0
+    out: ../../apps/server-go/gen
+    opt: paths=source_relative

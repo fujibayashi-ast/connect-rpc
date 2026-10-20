@@ -1,0 +1,54 @@
+name: Feature
+description: 新機能の追加
+title: "[Feature] "
+labels: ["feature"]
+body:
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景
+      description: なぜこの機能が必要か
+      placeholder: 例) Server streaming のサンプルがない
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: 目的
+      description: この Issue で達成したいこと
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 実装内容
+      description: Claude にやらせること（具体的に）
+      placeholder: |
+        - proto に rpc を追加
+        - サーバーに実装
+        - クライアントから呼ぶサンプルを追加
+    validations:
+      required: true
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: 非対象
+      description: やらないこと（重要）
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 完了条件
+      description: どうなれば完了か
+    validations:
+      required: true
+  - type: textarea
+    id: docs
+    attributes:
+      label: 参照ドキュメント
+      description: 着手前に読むべきドキュメント
+      placeholder: |
+        - docs/claude/workflow.md
+  - type: textarea
+    id: notes
+    attributes:
+      label: 注意点

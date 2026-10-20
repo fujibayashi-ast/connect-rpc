@@ -1,0 +1,168 @@
+syntax = "proto3";
+
+package contact.v1;
+
+import "buf/validate/validate.proto";
+
+// 検証ルールは protovalidate のアノテーションで宣言する。
+// Go・TS のサーバーとブラウザが同じルールで検証する（実装は各自で書かない）。
+
+enum Category {
+  CATEGORY_UNSPECIFIED = 0;
+  CATEGORY_GENERAL = 1;
+  CATEGORY_SUPPORT = 2;
+  CATEGORY_OTHER = 3;
+}
+
+message Contact {
+  // category が OTHER のときだけ message を必須にする（フィールド間の検証）。
+  // CEL では enum を整数として扱うので 3 = CATEGORY_OTHER
+  option (buf.validate.message).cel = {
+    id: "contact.message_required_for_other"
+    message: "カテゴリが「その他」のときは内容が必須です"
+    expression: "this.category != 3 || this.message.size() > 0"
+  };
+
+  // サーバーが UUID を採番する。リクエストに入れても無視される
+  string id = 1;
+
+  // 標準ルール（max_len や pattern）は message を差し替えられない。
+  // 数値を含むルールは CEL で書き、日本語のメッセージを proto に置く
+  string name = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).cel = {
+      id: "contact.name_max_len"
+      message: "50 文字以内で入力してください"
+      expression: "this.size() <= 50"
+    },
+    (buf.validate.field).cel = {
+      id: "contact.name_not_blank"
+      message: "空白だけの名前は使えません"
+      expression: "this.matches('\\\\S')"
+    }
+  ];
+
+  string email = 3 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.email = true
+  ];
+
+  // 任意。入力があるときだけ形式を検証する
+  string phone = 4 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).cel = {
+      id: "contact.phone_format"
+      message: "0 から始まる 10〜11 桁の数字で入力してください"
+      expression: "this.matches('^0[0-9]{9,10}$')"
+    }
+  ];
+
+  Category category = 5 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).enum.defined_only = true
+  ];
+
+  // 任意（category が OTHER のときを除く）
+  string message = 6 [(buf.validate.field).cel = {
+    id: "contact.message_max_len"
+    message: "500 文字以内で入力してください"
+    expression: "this.size() <= 500"
+  }];
+}
+
+message CreateContactRequest {
+  Contact contact = 1 [(buf.validate.field).required = true];
+}
+
+message CreateContactResponse {
+  Contact contact = 1;
+}
+
+message GetContactRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message GetContactResponse {
+  Contact contact = 1;
+}
+
+message ListContactsRequest {
+  // 1 ページの最大件数。0 ならサーバーの既定（50）。上限は 100
+  int32 page_size = 1 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 100
+  }];
+  // 前回の応答の next_page_token。空なら先頭から。中身は意味を持たない文字列として扱い、
+  // 読み取ったり組み立てたりしない
+  string page_token = 2;
+}
+
+message ListContactsResponse {
+  // 登録順
+  repeated Contact contacts = 1;
+  // 次のページがあるときだけ入る。空なら最後のページ
+  string next_page_token = 2;
+}
+
+message UpdateContactRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+  // 全フィールドを置き換える。更新対象は id で決まり、contact.id は無視される（Create と同じ）
+  Contact contact = 2 [(buf.validate.field).required = true];
+}
+
+message UpdateContactResponse {
+  Contact contact = 1;
+}
+
+message DeleteContactRequest {
+  string id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message DeleteContactResponse {}
+
+enum ChangeType {
+  CHANGE_TYPE_UNSPECIFIED = 0;
+  CHANGE_TYPE_CREATED = 1;
+  CHANGE_TYPE_UPDATED = 2;
+  CHANGE_TYPE_DELETED = 3;
+}
+
+message WatchContactsRequest {}
+
+message WatchContactsResponse {
+  oneof event {
+    // 接続した直後に 1 回だけ届く
+    ContactSnapshot snapshot = 1;
+    // snapshot のあと、変更が起きた順に届く
+    ContactChange change = 2;
+  }
+}
+
+message ContactSnapshot {
+  // 登録順の全件
+  repeated Contact contacts = 1;
+}
+
+message ContactChange {
+  ChangeType type = 1;
+  // 削除のときは、削除する前の Contact
+  Contact contact = 2;
+}
+
+service ContactService {
+  rpc CreateContact(CreateContactRequest) returns (CreateContactResponse);
+
+  // NO_SIDE_EFFECTS を付けると、Connect の GET でも呼べる（POST でも呼べる）
+  rpc GetContact(GetContactRequest) returns (GetContactResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc ListContacts(ListContactsRequest) returns (ListContactsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  rpc UpdateContact(UpdateContactRequest) returns (UpdateContactResponse);
+  rpc DeleteContact(DeleteContactRequest) returns (DeleteContactResponse);
+
+  // Server streaming。接続した直後に現在の一覧（snapshot）を 1 回送り、
+  // その後は変更（change）を送り続ける
+  rpc WatchContacts(WatchContactsRequest) returns (stream WatchContactsResponse);
+}

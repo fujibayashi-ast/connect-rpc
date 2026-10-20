@@ -1,0 +1,32 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# Claude Code (local overrides)
+.claude/settings.local.json
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs
+*.log
+
+# Dependencies / build artifacts
+node_modules/
+dist/
+build/
+coverage/
+
+# Playwright MCP の出力（スクリーンショット・スナップショット）
+.playwright-mcp/

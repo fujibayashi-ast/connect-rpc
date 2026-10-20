@@ -1,0 +1,19 @@
+# <type>: <summary (50 文字以内、日本語可)>
+#
+# <body: なぜこの変更が必要か、何を変えたか。72 文字で折り返す>
+#
+# Related: #<issue 番号>
+#
+# ---
+# type:
+#   feat     : 新機能
+#   fix      : バグ修正
+#   docs     : ドキュメントのみ
+#   style    : フォーマット（動作に影響しない）
+#   refactor : リファクタリング
+#   perf     : パフォーマンス改善
+#   test     : テスト追加・修正
+#   chore    : ビルド・補助ツール・設定変更
+#   revert   : リバート
+#
+# 使い方: git config commit.template .gitmessage
