@@ -90,10 +90,22 @@ gRPC は 1 本の HTTP/2 接続に多数の呼び出しを載せる。TCP（L4�
 
 ブラウザから gRPC-Web を呼ぶなら、`X-Grpc-Web`・`X-User-Agent`・`Grpc-Timeout` の許可と、`Grpc-Status`・`Grpc-Message`・`Grpc-Status-Details-Bin` の公開が要る。このサンプルは、Go（`connectcors`）も TS（`cors`）も、すでに許可・公開していて、プリフライトが通ることを測った。
 
-### ヘルスチェックと Reflection
+### ヘルスチェック
 
 * ロードバランサーや Kubernetes の gRPC のヘルスチェックは、gRPC の health プロトコル（`grpc.health.v1`）を使う。Go（connect-go v2）には `grpchealth.Register(server, checker)` がある（公式ドキュメントで確認。動かしてはいない）。TS 側のパッケージは確認していない。このサンプルの `/healthz` は HTTP の GET
-* grpcurl などから proto なしで呼ぶには、Reflection が要る。Go は `grpcreflect.Register(server)`（公式ドキュメントで確認。動かしてはいない）。TS は、`@connectrpc` の npm パッケージ（`npm search @connectrpc`）に Reflection のものが見当たらず、公式の実装は確認できなかった。2 つのサーバーで同じ作りにならないので実装しない。このサンプルは `buf curl --schema .` で proto を渡している（手元に proto があれば、Reflection なしで足りる）
+
+### Reflection
+
+Reflection は、サーバーに「どのサービス・メソッド・メッセージがあるか」を問い合わせる仕組み。クライアントが `.proto` を持っていなくても、grpcurl や `buf curl`（`--schema` なし）で呼べる。このサンプルは Reflection を実装していない。`buf curl --schema .` で proto を渡しているので、手元に proto があれば Reflection なしで足りる。
+
+* **Go:** `grpcreflect.Register(server)` の 1 行で足せる。モジュールは `connectrpc.com/grpcreflect/v2`（v2.0.0）で、v1 と v1alpha の両方の Reflection を返し、`server` に登録したサービスを自動で説明する。`server` の interceptor も通るので、アクセスログに `/grpc.reflection.v1.ServerReflection/ServerReflectionInfo` が出る（測った）
+* **TS:** 公式の実装は確認できなかった。`npm search @connectrpc` のパッケージ（connect・connect-web・connect-node・connect-fastify・connect-express・connect-next・connect-query・validate・connect-migrate など）に Reflection のものはない。非公式のパッケージ（`@lambdalisue/connectrpc-grpcreflect`）が npm にあるが、中身は確認していない
+* **足すだけでは使えない:** Reflection は双方向ストリーミングなので、HTTP/2 が要る（`buf curl --help` にも「HTTP 1.1 では動かない」とある）。このサンプルのサーバーは平文の HTTP/1.1 しか話さないので、Go に `Register` を足しただけでは使えなかった（測った）
+  * `buf curl --list-services http://localhost:8093` は `--reflect cannot be used with plain-text URLs (http) unless --http2-prior-knowledge flag is set` で止まる
+  * `--http2-prior-knowledge` を付けても、HTTP/1.1 だけのサーバーには `the server hosted at that remote is unavailable` で届かない
+  * 上の「gRPC を受ける（h2c）」の Go の設定（`http.Protocols`）も足すと、1 つのポートで通った。`buf curl --http2-prior-knowledge --list-services http://localhost:8094` が `contact.v1.ContactService` と `grpc.reflection.v1[alpha].ServerReflection` を返し、`--schema` なしの `CreateContact`・`ListContacts` も成功した。Connect と gRPC のどちらの `--protocol` でも同じだった
+* **実装しない理由:** TS に公式の実装がなく、2 つのサーバーで同じ作りにならない。Go だけに足すと、同じ API をどちらでも呼べることを示すサンプルの主旨から外れる。TS を h2c で受けるのも難しい（「TS」の節）
+* **本番で考えること（一般論）:** Reflection を有効にすると、サーバーに届く誰もが API の定義を取れる。社外に公開するサーバーでは、無効にするか、社内のネットワークや認証の内側に限ることを考える
 
 ### 使い分け
 
