@@ -26,17 +26,16 @@ ConnectRPC のサンプル。proto で API を定義し、サーバーとクラ�
 * モノレポ: bun workspaces は TS 側（`apps/web`・`apps/server-ts`・`packages/gen-ts`）だけを管理する。Go は `go.mod` で独立させる
 * クライアント（`apps/web`）: React + Vite。`@connectrpc/connect-web` で Connect プロトコルを直接呼ぶ（プロキシは使わない）
   * 見た目: Tailwind CSS v4（`@tailwindcss/vite`）+ shadcn/ui（`new-york`・neutral・CSS 変数）。部品は `src/components/ui/` に置く（`bunx shadcn@latest add <name>`）。色はアクセント 1 色まで、アニメーションは足さない。破壊的な操作は `AlertDialog` で確認し、入力欄は `aria-invalid` / `aria-describedby` でエラーと結びつける
-  * shadcn の CLI は import を `from "cn"` と書き、`cn` という別の npm パッケージを入れることがある。`add` のあとは `@/lib/utils` に直し、`cn` を `bun remove` する
+  * shadcn の CLI は `add` のあとに手直しが要る（import と余計な npm パッケージ）。手順は [docs/development.md](docs/development.md#画面の部品shadcnui)
 * サーバー（2 つ。同じ proto を実装する）
   * `apps/server-go`: Go 1.26 + `connectrpc.com/connect/v2`
   * `apps/server-ts`: TypeScript（Node）+ `@connectrpc/connect-node`
-* API 定義: protobuf（`packages/proto`）。lint・コード生成は buf（`buf.yaml` / `buf.gen.yaml`）
-* バリデーション: protovalidate のアノテーションを proto に書く（検証コードを手で書かない）。サーバーは interceptor（Go: `connectrpc.com/validate`、TS: `@connectrpc/validate`）、web は `@bufbuild/protovalidate` で送信前に同じルールを実行する。数値を含むルール（長さ・形式）は標準ルールでなく CEL で書き、日本語のメッセージを proto に置く（web の `fieldErrors.ts` の表には、数値を含まない標準ルールの訳だけを置く）
-* ログ: 各サーバーのアクセスログ interceptor（method・結果コード・所要時間・request_id の 1 行）。Go と TS で出力形式をそろえ、リクエストの中身は出さない。`request_id` は web の interceptor が付ける `X-Request-Id`（形式 `[A-Za-z0-9-]{1,64}` のものだけ使い、ないか不正ならサーバーが採番。応答ヘッダーにも返す）
-* interceptor の並びは、アクセスログ → 想定外エラーの保護（`maskErrors`）→ 検証。先頭が一番外側（Go も TS も同じ）
-* 読み取り専用の RPC は proto で `NO_SIDE_EFFECTS` を付けて GET でも呼べるようにする。ハンドラは冒頭で期限（Go の `ctx`、TS の `signal`）を確認する
-* Server streaming（`WatchContacts`）: 接続直後に snapshot、その後は change。TS の `accessLog` と `maskErrors` は応答のストリームを包んで終わり・途中のエラーを拾う（Go は `ServerFunc` がそのままストリーム全体を囲む）。web の一覧は `ListContacts` と自分の操作の応答で作り、watch は「サーバーの変更」欄の通知に使う（一覧は watch に依存しない）。watch の呼び出しは、既定の期限で切れないよう `timeoutMs: 0`
-* TS の生成コード（`protoc-gen-es`）は `packages/gen-ts` に出して web と server-ts で共有する。Go の生成コードは `apps/server-go/gen` に出す
+* API 定義: protobuf（`packages/proto`）。lint・コード生成は buf（`buf.yaml` / `buf.gen.yaml`）。TS の生成は `protoc-gen-es`。出力先は下の Architecture
+* バリデーション: protovalidate のアノテーションを proto に書く（検証コードを手で書かない）。サーバーは interceptor（Go: `connectrpc.com/validate`、TS: `@connectrpc/validate`）、web は `@bufbuild/protovalidate` で送信前に同じルールを実行する。数値を含むルール（長さ・形式）は標準ルールでなく CEL で書き、日本語のメッセージを proto に置く。理由と `fieldErrors.ts` の扱いは [docs/validation.md](docs/validation.md#メッセージを-proto-に置く)
+* ログ: 各サーバーにアクセスログ interceptor を置く。Go と TS で出力形式をそろえ、リクエストの中身は出さない。形式と `request_id`（`X-Request-Id`）の仕様は [docs/logging.md](docs/logging.md)
+* interceptor の並びは、アクセスログ → 想定外エラーの保護（`maskErrors`）→ 検証。先頭が一番外側（Go も TS も同じ）。理由は [docs/rpc-features.md](docs/rpc-features.md#想定外のエラー)
+* 読み取り専用の RPC は proto で `NO_SIDE_EFFECTS` を付けて GET でも呼べるようにする。ハンドラは冒頭で期限（Go の `ctx`、TS の `signal`）を確認する。詳細は [docs/rpc-features.md](docs/rpc-features.md)
+* Server streaming（`WatchContacts`）: TS の `accessLog` と `maskErrors` は応答のストリームを包む（Go は何もしなくてよい）。web の一覧は watch に依存させず、watch は「サーバーの変更」欄の通知に使う。watch の呼び出しは既定の期限で切れないよう `timeoutMs: 0`。変える前に [docs/streaming.md](docs/streaming.md) を読む
 * Lint / Format: Biome（TS）、`gofmt` / `go vet`（Go）
 * サーバーの起動: Docker。ルートの `compose.yaml` で server-go と server-ts を両方立ち上げる。web はホストで `vite` を動かす
 * ライブラリの API は推測で書かず、context7 で最新のドキュメントを確認する
